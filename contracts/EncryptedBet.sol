@@ -81,7 +81,8 @@ contract EncryptedBet is SepoliaConfig {
         require(block.timestamp < round.endTime, "Round has ended");
         require(round.creator != address(0), "Round does not exist");
         require(msg.value > 0, "Must send ETH");
-        
+        require(msg.value <= 10 ether, "Maximum bet amount is 10 ETH"); // Prevent excessively large bets
+
         euint32 amount = FHE.fromExternal(encryptedAmount, inputProof);
         ebool betChoice = FHE.fromExternal(choice, inputProof);
         
@@ -133,12 +134,15 @@ contract EncryptedBet is SepoliaConfig {
         require(round.creator != address(0), "Round does not exist");
         
         round.resolved = true;
-        
+
         // Make all amounts publicly decryptable so any participant can decrypt
         FHE.makePubliclyDecryptable(round.totalAmount);
         FHE.makePubliclyDecryptable(round.yesAmount);
         FHE.makePubliclyDecryptable(round.noAmount);
-        
+
+        // Emit resolution event with round details
+        emit RoundResolved(roundId, false, 0, 0); // Winner and amounts will be determined by decryption
+
         // Note: Winner determination and reward calculation happens off-chain
         // Users will call claimReward with their calculated reward amount
     }
