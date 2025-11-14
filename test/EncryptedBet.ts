@@ -165,6 +165,44 @@ describe("EncryptedBet", function () {
         })
     ).to.be.revertedWith("Round has ended");
   });
+
+  it("should reject bets exceeding maximum amount", async function () {
+    // Get current block timestamp from the blockchain
+    const currentBlock = await ethers.provider.getBlock("latest");
+    const endTime = currentBlock!.timestamp + 3600; // 1 hour from now
+    const roundName = "Test Round";
+
+    const encryptedCreate = await fhevm
+      .createEncryptedInput(encryptedBetContractAddress, signers.alice.address)
+      .add32(100)
+      .addBool(true)
+      .encrypt();
+
+    await encryptedBetContract
+      .connect(signers.alice)
+      .createRound(
+        "Test Round",
+        endTime,
+        encryptedCreate.handles[1],
+        encryptedCreate.handles[0],
+        encryptedCreate.inputProof
+      );
+
+    const encryptedBet = await fhevm
+      .createEncryptedInput(encryptedBetContractAddress, signers.bob.address)
+      .add32(50)
+      .addBool(false)
+      .encrypt();
+
+    // Try to place a bet exceeding 10 ETH
+    await expect(
+      encryptedBetContract
+        .connect(signers.bob)
+        .placeBet(0, encryptedBet.handles[1], encryptedBet.handles[0], encryptedBet.inputProof, {
+          value: ethers.parseEther("15"), // 15 ETH exceeds limit
+        })
+    ).to.be.revertedWith("Maximum bet amount is 10 ETH");
+  });
 });
 
 
